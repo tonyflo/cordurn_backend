@@ -13,17 +13,26 @@ def print_db_error(e):
     except IndexError:
         print("MySQL Error: %s" % str(e))
 
+def is_ascii(s):
+    return all(ord(c) < 128 for c in s)
+
 def insert_earnings(qe, d_str):
     for stock in qe:
         symbol = stock['symbol']
         name = stock['name']
         when = stock['time']
+        if not is_ascii(name):
+            print('NOASCII - name:%s, symbol:%s, time:%s' % (name, symbol, when))
+            continue
         if not symbol or not name or not when or '.' in symbol:
             print('SKIPING - name:%s, symbol:%s, time:%s' % (name, symbol, when))
             continue
+        if not is_ascii(when):
+            when = 'Time Not Supplied'
+        if '\n' in name:
+            name = name.replace('\n', ' ')
 
-        args = [d_str, when, symbol, name]        
-        
+        args = [d_str, when, symbol, name]
         try:
             conn=MySQLdb.connect(host="mysql.cordurn.com", user="vptfitm", passwd="K0naBrewingC0", db="cordurn")
             conn.autocommit('on')
@@ -32,8 +41,11 @@ def insert_earnings(qe, d_str):
         except MySQLdb.Error as e:
             print_db_error(e)
         finally:
-            cursor.close()
-            conn.close()
+            try:
+                cursor.close()
+                conn.close()
+            except MySQLdb.ProgrammingError as pe:
+                print_db_error(pe)
  
 def populate_historical():
     d = date.today()
