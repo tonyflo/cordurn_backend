@@ -11,13 +11,14 @@ import MySQLdb
 def pack_historical(historical):
     d, o, h, l, c, a, v = [[], [], [], [], [], [], []]
     for data in historical:
-        d.append(data['Date'])
-        o.append(data['Open'])
-        h.append(data['High'])
-        l.append(data['Low'])
-        c.append(data['Close'])
-        a.append(data['Adj_Close'])
-        v.append(data['Volume'])
+        if all (k in data for k in ('Date','Open','High','Low','Close','Adj_Close','Volume')):
+            d.append(data['Date'])
+            o.append(data['Open'])
+            h.append(data['High'])
+            l.append(data['Low'])
+            c.append(data['Close'])
+            a.append(data['Adj_Close'])
+            v.append(data['Volume'])
     return zip(d, o, h, l, c, a, v)
 
 def insert_ohlc(stock_id, z, historical_len, cursor, symbol):
@@ -37,9 +38,11 @@ def insert_ohlc(stock_id, z, historical_len, cursor, symbol):
     if historical_len != num_inserted:
         print('\t--- Tried to insert %d rows but only %d were inserted for %s' % (historical_len, num_inserted, symbol))
 
-def populate_ohlc():
+def populate_ohlc(tup):
     START = '2001-01-01'
     END = '2016-06-06'
+    stock_id=''
+    symbol=''
     try:
         conn=MySQLdb.connect(host="mysql.cordurn.com", user="vptfitm", passwd="K0naBrewingC0", db="cordurn")
         print('Connected to MySQL db')
@@ -49,11 +52,13 @@ def populate_ohlc():
         print('Getting list of stock symbols')
         cursor.execute('select stock_id, symbol from stock') 
         stocks = cursor.fetchall()
+        idx=stocks.index(tup)
+        stocks = stocks[idx:]
         for stock in stocks:
             stock_id = stock[0]
             symbol = stock[1]
             company = Share(symbol)
-            print(symbol)
+            print('%s %s' % (symbol, stock_id))
             print('\tGetting historical data')
             historical = company.get_historical(START, END)
             if not historical:
@@ -72,6 +77,7 @@ def populate_ohlc():
     finally:
         cursor.close()
         conn.close()
+        populate_ohlc((stock_id,symbol))
         
 if __name__ == '__main__':
     populate_ohlc()
